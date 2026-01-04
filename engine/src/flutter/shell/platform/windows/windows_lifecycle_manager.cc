@@ -8,8 +8,23 @@
 #include <WinUser.h>
 #include <Windows.h>
 #include <tchar.h>
-
+#include <set>
 #include "flutter/shell/platform/windows/flutter_windows_engine.h"
+
+static bool IsAnyFlutterWindowForeground(
+    const std::set<HWND>& windows) {
+  HWND foreground = ::GetForegroundWindow();
+  if (!foreground) {
+    return false;
+  }
+
+  for (HWND hwnd : windows) {
+    if (hwnd == foreground) {
+      return true;
+    }
+  }
+  return false;
+}
 
 namespace flutter {
 
@@ -210,7 +225,11 @@ void WindowsLifecycleManager::UpdateState() {
   if (visible_windows_.empty()) {
     new_state = AppLifecycleState::kHidden;
   } else if (focused_windows_.empty()) {
-    new_state = AppLifecycleState::kInactive;
+    if (!IsAnyFlutterWindowForeground(visible_windows_)) {
+      new_state = AppLifecycleState::kInactive;
+    } else {
+      new_state = AppLifecycleState::kResumed;
+    }
   }
   SetLifecycleState(new_state);
 }
